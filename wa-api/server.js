@@ -2,15 +2,17 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaile
 import express from 'express';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode'; // Pastikan sudah jalan: npm install qrcode
 
 const app = express();
 app.use(express.json());
 
 let sock;
+let lastQR = null;
 
 async function connectToWhatsApp() {
     const { version } = await fetchLatestBaileysVersion();
-    // Path folder sesi disesuaikan untuk Railway
+    // Path folder sesi yang akan dihubungkan ke Railway Volume
     const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info');
 
     sock = makeWASocket({
@@ -27,16 +29,16 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('\n==================================================');
-            console.log('⏳ SCAN QR CODE BARU:');
+            lastQR = qr;
+            console.log('⏳ QR Code diperbarui. Silakan cek di /scan');
             qrcode.generate(qr, { small: true });
-            console.log('==================================================\n');
         }
 
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) setTimeout(connectToWhatsApp, 3000);
         } else if (connection === 'open') {
+            lastQR = null;
             console.log('\n✅ WhatsApp Bot Manakarra Police Academy READY!');
         }
     });
@@ -45,7 +47,32 @@ async function connectToWhatsApp() {
 connectToWhatsApp();
 
 // ==========================================
-// ENDPOINT DENGAN VALIDASI NOMOR (FIX)
+// 1. ENDPOINT UNTUK SCAN QR DI BROWSER
+// ==========================================
+app.get('/scan', async (req, res) => {
+    if (!lastQR) {
+        if (sock?.user) return res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">✅ WhatsApp Bot Sudah Terhubung!</h1>');
+        return res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">⏳ Menunggu QR Code... Refresh halaman ini sebentar lagi.</h1>');
+    }
+    
+    try {
+        const qrImage = await QRCode.toDataURL(lastQR);
+        res.send(`
+            <div style="text-align:center; padding-top:50px; font-family:sans-serif;">
+                <h2 style="color:#1e1b4b;">Scan QR Manakarra Police Academy</h2>
+                <img src="${qrImage}" style="border: 15px solid #f1f1f1; border-radius:20px; width:300px;" />
+                <p style="color:#64748b;margin-top:20px;">Buka WhatsApp > Perangkat Tertaut > Tautkan Perangkat</p>
+                <p style="font-size:12px;color:#cbd5e1;">Halaman ini otomatis refresh setiap 20 detik</p>
+                <script>setTimeout(() => location.reload(), 20000);</script>
+            </div>
+        `);
+    } catch (err) {
+        res.status(500).send('Gagal generate QR');
+    }
+});
+
+// ==========================================
+// 2. ENDPOINT KIRIM OTP
 // ==========================================
 app.post('/send-otp', async (req, res) => {
     try {
@@ -77,7 +104,6 @@ app.post('/send-otp', async (req, res) => {
     }
 });
 
-// PENTING: Penyesuaian Port untuk Railway
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 API WA Running on port ${PORT}`);

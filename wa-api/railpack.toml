@@ -1,3 +1,6 @@
 [languages]
 node = true
 php = false
+
+[build]
+# Force Node.js only

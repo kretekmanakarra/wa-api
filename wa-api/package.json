@@ -1,0 +1,16 @@
+{
+  "name": "wa-api",
+  "version": "1.0.0",
+  "description": "API WhatsApp Lokal Manakarra Police Academy",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.0",
+    "express": "^4.19.2",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

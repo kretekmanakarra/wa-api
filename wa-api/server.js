@@ -10,6 +10,7 @@ let sock;
 
 async function connectToWhatsApp() {
     const { version } = await fetchLatestBaileysVersion();
+    // Path folder sesi disesuaikan untuk Railway
     const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info');
 
     sock = makeWASocket({
@@ -54,13 +55,10 @@ app.post('/send-otp', async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Data tidak lengkap' });
         }
 
-        // 1. Bersihkan nomor (hanya angka)
         let cleanNumber = number.replace(/\D/g, '');
-
-        // 2. Pastikan berakhiran @s.whatsapp.net
         let jid = cleanNumber.includes('@s.whatsapp.net') ? cleanNumber : `${cleanNumber}@s.whatsapp.net`;
 
-        // 3. Cek apakah nomor terdaftar di WA (PENTING!)
+        // Validasi nomor WhatsApp
         const [result] = await sock.onWhatsApp(jid);
         
         if (!result || !result.exists) {
@@ -68,7 +66,6 @@ app.post('/send-otp', async (req, res) => {
             return res.status(404).json({ status: 'error', message: 'Nomor tidak terdaftar di WA' });
         }
 
-        // 4. Kirim menggunakan JID hasil validasi
         await sock.sendMessage(result.jid, { text: message });
         
         console.log(`[${new Date().toLocaleTimeString()}] ✉️ Sukses ke: ${result.jid}`);
@@ -80,7 +77,8 @@ app.post('/send-otp', async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 API WA Port ${PORT} Running...`);
+// PENTING: Penyesuaian Port untuk Railway
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 API WA Running on port ${PORT}`);
 });
